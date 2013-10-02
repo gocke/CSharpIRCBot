@@ -300,6 +300,24 @@ namespace CSharpIRCBot
                 DoHelp(e);
             }
 
+            //case we get the message help
+            if (messageParts[0] == ".NEXTEPISODE")
+            {
+                DoNextEpisode(e, messageParts, channel);
+            }
+
+            //case we get the message re
+            if (messageParts[0] == ".ANIME")
+            {
+                DoAnimeManga(e, messageParts, channel, MyAnimeListHandler.AnimeManga.Anime);
+            }
+
+            //case we get the message re
+            if (messageParts[0] == ".MANGA")
+            {
+                DoAnimeManga(e, messageParts, channel, MyAnimeListHandler.AnimeManga.Manga);
+            }
+
             //case we get the message re
             if (messageParts[0] == ".RE" || messageParts[0] == "RE")
             {
@@ -327,6 +345,53 @@ namespace CSharpIRCBot
         {
             string user = e.Data.Ident;
             mainIRCClient.RfcNotice(user, ".Help, [.]re, .Rape, .booru [provider (default=danbooru)] [tags]");
+        }
+
+        //This method searches for an anime matching given tags
+        private void DoAnimeManga(IrcEventArgs e, List<string> tags, string channel, MyAnimeListHandler.AnimeManga AnimeManga)
+        {
+            //we know the first word is anime
+            //we remove the anime command
+            tags.Remove(tags[0]);
+
+            //safety check that there are still tags left, e.g. .anime would be empty now
+            if (tags.Count == 0)
+                return;
+
+            //now the other words all count as tags
+            List<Tuple<string, string>> tempAnimeMangaDict = MyAnimeListHandler.GetAnimeManga(tags, AnimeManga);
+
+            //if we recieve null that means we have an error
+            if (tempAnimeMangaDict == null)
+            {
+                mainIRCClient.SendMessage(SendType.Message, channel, "Not possible to retrieve AnimeManga or too many");
+                return;
+            }
+
+            //printing the lists entry in the request-ing/ed channel
+            foreach (var entry in tempAnimeMangaDict)
+            {
+                mainIRCClient.SendMessage(SendType.Message, channel, entry.Item1 + " : " + entry.Item2);
+            }
+        }
+
+        private void DoNextEpisode(IrcEventArgs e, List<string> tags, string channel)
+        {
+            //If we have no tag for the AnimeName we just go away
+            if (tags.Count < 2)
+                return;
+
+            //we know the first word is NextEpisode
+            //we remove the NextEpisode command
+            tags.Remove(tags[0]);
+
+            //extracting the animeName 
+            string animeName = tags[0];
+
+            //Getting the Next episodes date from the AniDB Handler
+            string dateOfNextEpisode = AniDBHandler.GetNextEpisodeDate("1");
+
+            mainIRCClient.SendMessage(SendType.Message, channel, dateOfNextEpisode);
         }
 
         //this method welcomes you back master
@@ -368,7 +433,7 @@ namespace CSharpIRCBot
                     break;
             }
 
-            //safety check that there are still tags left, e.g. #booru sankaku would be empty now
+            //safety check that there are still tags left, e.g. .booru sankaku would be empty now
             if (tags.Count == 0)
                 return;
 

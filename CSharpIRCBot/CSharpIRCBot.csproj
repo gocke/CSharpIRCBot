@@ -44,11 +44,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AniDBHandler.cs" />
     <Compile Include="BooruObject.cs" />
     <Compile Include="Calculators.cs" />
     <Compile Include="DanbooruHandler.cs" />
     <Compile Include="HttpRequester.cs" />
     <Compile Include="IRCBot.cs" />
+    <Compile Include="MyAnimeListHandler.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
