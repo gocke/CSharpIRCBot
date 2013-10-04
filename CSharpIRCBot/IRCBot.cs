@@ -73,6 +73,12 @@ namespace CSharpIRCBot
             }
         }
 
+        public void JoinChannel(string channelName, string message)
+        {
+            JoinChannel(channelName);
+            mainIRCClient.SendMessage(SendType.Message, channelName, message);
+        }
+
         public void JoinChannel(string channelName)
         {
             try
@@ -284,7 +290,7 @@ namespace CSharpIRCBot
 
                 if(mainIRCClient.GetChannels().Contains<string>(channel) == false)
                 {
-                    JoinChannel(channel);
+                    JoinChannel(channel, "Im here on a mission from: " + e.Data.Host);
                     joinedChannel = true;
                 }
             }
@@ -301,7 +307,7 @@ namespace CSharpIRCBot
             }
 
             //case we get the message help
-            if (messageParts[0] == ".NEXTEPISODE")
+            if (messageParts[0] == ".NEXT")
             {
                 DoNextEpisode(e, messageParts, channel);
             }
@@ -336,6 +342,7 @@ namespace CSharpIRCBot
                 DoBooru(e, messageParts, channel);
             }
 
+            //If we joined a channel for this command we now leave it
             if (joinedChannel)
                 PartChannel(channel);
         }
@@ -344,7 +351,7 @@ namespace CSharpIRCBot
         private void DoHelp(IrcEventArgs e)
         {
             string user = e.Data.Ident;
-            mainIRCClient.RfcNotice(user, ".Help, [.]re, .Rape, .booru [provider (default=danbooru)] [tags]");
+            mainIRCClient.RfcNotice(user, ".Help, [.]re, .Rape, .Next [animename], .booru [provider (default=danbooru)] [tags]");
         }
 
         //This method searches for an anime matching given tags
@@ -385,13 +392,49 @@ namespace CSharpIRCBot
             //we remove the NextEpisode command
             tags.Remove(tags[0]);
 
-            //extracting the animeName 
-            string animeName = tags[0];
+            //First we get a list of IDs of Anime matching the query(animeName)
+            List<string> animeIDs = AniDBHandler.GetAnimeIDs(tags);
 
-            //Getting the Next episodes date from the AniDB Handler
-            string dateOfNextEpisode = AniDBHandler.GetNextEpisodeDate("1");
+            if (animeIDs.Count >= 20)
+            {
+                mainIRCClient.SendMessage(SendType.Message, channel, "More than 20 Entrys found, please specify so we don't hurt AniDB");
+                return;
+            }
 
-            mainIRCClient.SendMessage(SendType.Message, channel, dateOfNextEpisode);
+            //Iterating over the IDs and getting the matching entrys
+            foreach (var animeID in animeIDs)
+            {
+                //Getting the Next episodes date from the AniDB Handler
+                Tuple<string,TimeSpan> timeToNextEpisodeTuple = AniDBHandler.GetNextEpisodeTimeSpan(animeID);
+
+                //Checking if the episode lies in the past
+                if (timeToNextEpisodeTuple.Item2.Days < 0 || timeToNextEpisodeTuple.Item2.Hours <0 || 
+                    timeToNextEpisodeTuple.Item2.Minutes < 0 || timeToNextEpisodeTuple.Item2.Seconds < 0)
+                {
+                    string timeToNextEpisodeString =
+                        string.Format("The last episode of {0} aired {1} Days, " +
+                        "{2} hours, {3} minutes and {4} seconds ago.", timeToNextEpisodeTuple.Item1,
+                        timeToNextEpisodeTuple.Item2.Days * -1, timeToNextEpisodeTuple.Item2.Hours * -1,
+                        timeToNextEpisodeTuple.Item2.Minutes * -1, timeToNextEpisodeTuple.Item2.Seconds * -1);
+
+                    mainIRCClient.SendMessage(SendType.Message, channel, timeToNextEpisodeString);
+                }
+                else
+                {
+                    string timeToNextEpisodeString =
+                        string.Format("The next episode of {0} airs in {1} Days, " +
+                        "{2} hours, {3} minutes and {4} seconds.", timeToNextEpisodeTuple.Item1,
+                        timeToNextEpisodeTuple.Item2.Days, timeToNextEpisodeTuple.Item2.Hours,
+                        timeToNextEpisodeTuple.Item2.Minutes, timeToNextEpisodeTuple.Item2.Seconds);
+
+                    mainIRCClient.SendMessage(SendType.Message, channel, timeToNextEpisodeString);
+                }
+
+                //We dont want to strain AniDB, therefore we always wait 3 seconds before every request
+                Thread.Sleep(3000);
+            }
+
+            mainIRCClient.SendMessage(SendType.Message, channel, "Those were all matching entrys in AniDB, if yours wasn't there, try to reprase your query.");
         }
 
         //this method welcomes you back master

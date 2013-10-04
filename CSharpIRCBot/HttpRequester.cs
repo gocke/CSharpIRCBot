@@ -13,40 +13,56 @@ namespace CSharpIRCBot
 {
     class HttpRequester
     {
+        //We have multiple GetHtmlXmlDocumentOverloads so entering parameters is easy
+        //Note we could also let the GetHttpXmlDocument methods call each other, 
+        //but that would be slower 
         public static XmlDocument GetHttpXmlDocument(string adress)
         {
             //first we get a Stream of the Xml, for that we use a webrequest
-            Stream resStream = GetHttpStream(adress);
-            //GetHttpStream may return null if we got no nice answer
-            if (resStream == null)
-                return null;
+            Stream resStream = GetHttpStream(adress, null, null, DecompressionMethods.None);
 
-            //Pushing the Stream in an XmlReader
-            XmlReader tempXmlReader = XmlReader.Create(resStream);
-
-            //Creating a new XmlDocument, and loading the Xml from the XmlReader
-            XmlDocument tempXmlDocument = new XmlDocument();
-            tempXmlDocument.Load(tempXmlReader);
-
-            return tempXmlDocument;
+            //Then we use the Parser method and return it
+            return ParseStreamToXmlDocument(resStream);
         }
 
         public static XmlDocument GetHttpXmlDocument(string adress, string username, string password)
         {
-            //first we get a Stream of the Xml, for that we use a webrequest
-            Stream resStream = GetAuthHttpStream(adress, username, password);
+            //first we get a Stream of the Xml, for that we use a webrequest with username and password
+            Stream resStream = GetHttpStream(adress, username, password, DecompressionMethods.None);
+
+            //Then we use the Parser method and return it
+            return ParseStreamToXmlDocument(resStream);
+        }
+
+        public static XmlDocument GetHttpXmlDocument(string adress, DecompressionMethods decompressionMethod)
+        {
+            //first we get a Stream of the Xml, for that we use a webrequest with compression
+            Stream resStream = GetHttpStream(adress, null, null, decompressionMethod);
+
+            //Then we use the Parser method and return it
+            return ParseStreamToXmlDocument(resStream);
+        }
+
+        public static XmlDocument GetHttpXmlDocument(string adress, string username, string password, DecompressionMethods decompressionMethod)
+        {
+            //first we get a Stream of the Xml, for that we use a webrequest with username and password and compression
+            Stream resStream = GetHttpStream(adress, username, password, decompressionMethod);
+
+            //Then we use the Parser method and return it
+            return ParseStreamToXmlDocument(resStream);
+        }
+
+        private static XmlDocument ParseStreamToXmlDocument(Stream resStream)
+        {
             //GetHttpStream may return null if we got no nice answer
             if (resStream == null)
                 return null;
 
             try
             {
-                //Pushing the Stream in an XmlReader
-                XmlReader tempXmlReader = XmlReader.Create(resStream);
-                
-                //Creating a new XmlDocument, and loading the Xml from the XmlReader
+                //Creating a new XmlDocument, and loading the Xml from the resStream
                 XmlDocument tempXmlDocument = new XmlDocument();
-                tempXmlDocument.Load(tempXmlReader);
+                tempXmlDocument.Load(resStream);
 
                 return tempXmlDocument;
             }
@@ -56,14 +72,14 @@ namespace CSharpIRCBot
                 Console.WriteLine(e.InnerException);
                 Console.WriteLine(e.StackTrace);
             }
-            
+
             return null;
         }
 
         public static JObject GetHttpJSONObject(string adress)
         {
             //first we get a Stream of the Json, for that we use a webrequest
-            Stream resStream = GetHttpStream(adress);
+            Stream resStream = GetHttpStream(adress, null, null, DecompressionMethods.None);
             //GetHttpStream may return null if we got no nice answer
             if (resStream == null)
                 return null;
@@ -88,7 +104,7 @@ namespace CSharpIRCBot
         public static JArray GetHttpJSONArray(string adress)
         {
             //first we get a Stream of the Json, for that we use a webrequest
-            Stream resStream = GetHttpStream(adress);
+            Stream resStream = GetHttpStream(adress, null, null, DecompressionMethods.None);
             //GetHttpStream may return null if we got no nice answer
             if (resStream == null)
                 return null;
@@ -110,38 +126,16 @@ namespace CSharpIRCBot
         }
 
         //This method returns a stream on the response of a RESTful webrequest, i think it should be a standard function in Net package
-        private static Stream GetHttpStream(string adress)
+        private static Stream GetHttpStream(string adress, string username, string password, DecompressionMethods decompressionMethod)
         {
             try
             {
                 // prepare the web page we will be asking for
                 HttpWebRequest request = (HttpWebRequest)WebRequest.Create(adress);
+                if(username != null)
+                    request.Credentials = new NetworkCredential(username, password);
 
-                // execute the request
-                HttpWebResponse response = (HttpWebResponse)request.GetResponse();
-                if (response.StatusCode == HttpStatusCode.NoContent || response.StatusCode == HttpStatusCode.Forbidden)
-                    return null;
-
-                // we will read data via the response stream
-                return response.GetResponseStream();
-            }
-            catch (WebException e)
-            {
-                Console.WriteLine(e.StackTrace);
-            }
-
-            //if we get no response for whatever reason we return null
-            return null;
-        }
-
-        //This method returns a stream on the response of a RESTful webrequest, i think it should be a standard function in Net package
-        private static Stream GetAuthHttpStream(string adress, string username, string password)
-        {
-            try
-            {
-                // prepare the web page we will be asking for
-                HttpWebRequest request = (HttpWebRequest)WebRequest.Create(adress);
-                request.Credentials = new NetworkCredential(username, password);
+                request.AutomaticDecompression = decompressionMethod;
 
                 // execute the request
                 HttpWebResponse response = (HttpWebResponse)request.GetResponse();
