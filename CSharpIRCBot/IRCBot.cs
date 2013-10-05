@@ -13,6 +13,9 @@ namespace CSharpIRCBot
     {
         public IrcClient mainIRCClient;
 
+        //this time is used to check that certain operations don't occure too often in a too short time
+        DateTime lastCriticalMethodRun = DateTime.MinValue;
+
         public IRCBot()
         {
             mainIRCClient = new IrcClient();
@@ -351,7 +354,7 @@ namespace CSharpIRCBot
         private void DoHelp(IrcEventArgs e)
         {
             string user = e.Data.Ident;
-            mainIRCClient.RfcNotice(user, ".Help, [.]re, .Rape, .Next [animename], .booru [provider (default=danbooru)] [tags]");
+            mainIRCClient.RfcNotice(user, ".Help, [.]re, .Rape, .Next [animename], .booru [provider (default=danbooru)] [tags], .ImStupid");
         }
 
         //This method searches for an anime matching given tags
@@ -371,7 +374,7 @@ namespace CSharpIRCBot
             //if we recieve null that means we have an error
             if (tempAnimeMangaDict == null)
             {
-                mainIRCClient.SendMessage(SendType.Message, channel, "Not possible to retrieve AnimeManga or too many");
+                mainIRCClient.SendMessage(SendType.Message, channel, "Not possible to retrieve AnimeManga or too many. Duh, you can't even do the most simple things correctly.");
                 return;
             }
 
@@ -384,6 +387,20 @@ namespace CSharpIRCBot
 
         private void DoNextEpisode(IrcEventArgs e, List<string> tags, string channel)
         {
+            //Nite the whole lock system only works if there are no 2 requests at really nearly identical time but its deadlock safe
+            //We have to make sure this is only allowed once all 20 seconds so we don't get banned for raping AniDB
+            //TODO add check that the same file isn't requested multiple times
+            int secondsSinceLastRun = (int)DateTime.Now.Subtract(lastCriticalMethodRun).Seconds;
+            if (secondsSinceLastRun < 20)
+            {
+                mainIRCClient.SendMessage(SendType.Message, channel, string.Format("The laste next request was {0} seconds ago, only one run every 20 seconds is allowed. Death Penalty!", secondsSinceLastRun));
+                return;
+            }
+
+            //we dont want to have another process enter while we are running AND we don't want it in the first 20 seconds afterwards
+            //for the part of running at the same time we make lastCriticalMethodRun huge, meaning it will never be more than 20 seconds ago.
+            lastCriticalMethodRun = DateTime.MaxValue;
+
             //If we have no tag for the AnimeName we just go away
             if (tags.Count < 2)
                 return;
@@ -397,7 +414,7 @@ namespace CSharpIRCBot
 
             if (animeIDs.Count >= 20)
             {
-                mainIRCClient.SendMessage(SendType.Message, channel, "More than 20 Entrys found, please specify so we don't hurt AniDB");
+                mainIRCClient.SendMessage(SendType.Message, channel, "More than 20 Entrys found, please specify so we don't hurt AniDB. Anyone accepting defeat will be punished by running ten laps around the school, naked! And you'll have to yell \"Green Martians are chasing me!\" for the whole ten laps!");
                 return;
             }
 
@@ -407,13 +424,14 @@ namespace CSharpIRCBot
                 //Getting the Next episodes date from the AniDB Handler
                 Tuple<string,TimeSpan> timeToNextEpisodeTuple = AniDBHandler.GetNextEpisodeTimeSpan(animeID);
 
+                //Printing the result
                 //Checking if the episode lies in the past
                 if (timeToNextEpisodeTuple.Item2.Days < 0 || timeToNextEpisodeTuple.Item2.Hours <0 || 
                     timeToNextEpisodeTuple.Item2.Minutes < 0 || timeToNextEpisodeTuple.Item2.Seconds < 0)
                 {
                     string timeToNextEpisodeString =
                         string.Format("The last episode of {0} aired {1} Days, " +
-                        "{2} hours, {3} minutes and {4} seconds ago.", timeToNextEpisodeTuple.Item1,
+                        "{2} hours, {3} minutes and {4} seconds ago.  Even a child knows that, moron!", timeToNextEpisodeTuple.Item1,
                         timeToNextEpisodeTuple.Item2.Days * -1, timeToNextEpisodeTuple.Item2.Hours * -1,
                         timeToNextEpisodeTuple.Item2.Minutes * -1, timeToNextEpisodeTuple.Item2.Seconds * -1);
 
@@ -423,7 +441,7 @@ namespace CSharpIRCBot
                 {
                     string timeToNextEpisodeString =
                         string.Format("The next episode of {0} airs in {1} Days, " +
-                        "{2} hours, {3} minutes and {4} seconds.", timeToNextEpisodeTuple.Item1,
+                        "{2} hours, {3} minutes and {4} seconds. Even a child knows that, moron!", timeToNextEpisodeTuple.Item1,
                         timeToNextEpisodeTuple.Item2.Days, timeToNextEpisodeTuple.Item2.Hours,
                         timeToNextEpisodeTuple.Item2.Minutes, timeToNextEpisodeTuple.Item2.Seconds);
 
@@ -434,14 +452,17 @@ namespace CSharpIRCBot
                 Thread.Sleep(3000);
             }
 
-            mainIRCClient.SendMessage(SendType.Message, channel, "Those were all matching entrys in AniDB, if yours wasn't there, try to reprase your query.");
+            mainIRCClient.SendMessage(SendType.Message, channel, "Those were all matching entrys in AniDB, if yours wasn't there, try to reprase your query. If you are capable of doing that.");
+
+            //Now we make lastCriticalMomentRun our curren time so the 20 seconds afterwards apply
+            lastCriticalMethodRun = DateTime.Now;
         }
 
         //this method welcomes you back master
         private void DoRe(IrcEventArgs e, string channel)
         {
             string user = e.Data.Ident;
-            mainIRCClient.SendMessage(SendType.Message, channel, "Welcome back " + user + " have a fun but safe time!");
+            mainIRCClient.SendMessage(SendType.Message, channel, "Welcome back " + user + ". The key in turning people on is a girl with a lolita face and big breasts.");
         }
 
         //Sends a funny sentence with a random number of users involved
