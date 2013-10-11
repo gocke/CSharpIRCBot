@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace CSharpIRCBot
 {
-	class DanbooruHandler
+	class BooruHandler
 	{
 		//This method returns a link to an (random)(the last) imagefile, matching the provider and tags
 		//this method is an overload to make a list of tags into a single tag using the booru + operator

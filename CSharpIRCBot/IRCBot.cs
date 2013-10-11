@@ -502,7 +502,7 @@ namespace CSharpIRCBot
                 return;
 
             //now the other words all count as tags
-            string fileUrl = DanbooruHandler.GetFileLink(tags, provider);
+            string fileUrl = BooruHandler.GetFileLink(tags, provider);
             mainIRCClient.SendMessage(SendType.Message, channel, fileUrl);
         }
     }
